@@ -36,6 +36,7 @@
 - Filename: `{service}/{resource}_manager.py`
 - Classname: `{Resource}Manager`
 - Prohibit: Direct API calls (use Connector)
+- Utils: `convert_tags_to_dict_type()`, `datetime_to_iso8601()`
 - Pattern:
   ```python
   class {Resource}Manager(ResourceManager):  # base.py inheritance required

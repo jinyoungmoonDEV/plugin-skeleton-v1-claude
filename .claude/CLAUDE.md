@@ -37,19 +37,9 @@
 ---
 
 ## Coding Rules
-
-### Minimal Change
 - Modify only requested parts
 - Preserve existing format/structure
 - No unnecessary refactoring
-
-### Error Handling
-- Manager: `yield make_error_response()`
-- Connector: Propagate errors upward
-
-### Data Conversion
-- Tags: `convert_tags_to_dict_type()`
-- Datetime: `datetime_to_iso8601()`
 
 ---
 
