@@ -2,15 +2,6 @@
 
 ---
 
-## Basic Info
-- Python 3.8+ / SpaceOne / Inventory Collector
-
-## Naming Convention
-- File/Variable/Function: `snake_case` | Class: `PascalCase` | Constant: `UPPER_SNAKE_CASE`
-- `create_*`: DB save | `make_*`: Dict build | `get_*`: Single fetch | `list_*`: Multiple fetch
-
----
-
 ## main.py
 - Role: Plugin entry point
 - Prohibit: Business logic, Direct API calls
