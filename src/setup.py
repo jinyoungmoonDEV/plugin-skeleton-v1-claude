@@ -21,21 +21,15 @@ with open("VERSION", "r") as f:
     f.close()
 
 setup(
-    name="plugin-aws-war-collector",
+    name="plugin-",
     version=VERSION,
-    description="aws war collector by using service screener",
+    description="",
     long_description="",
-    url="https://www.spaceone.dev/",
-    author="MEGAZONE SpaceONE Team",
-    author_email="admin@spaceone.dev",
-    license="Apache License 2.0",
+    url="",
+    author="",
+    author_email="",
+    license="",
     packages=find_packages(),
-    install_requires=[
-        "spaceone-core",
-        "spaceone-api",
-        "spaceone-inventory",
-        "requests",
-    ],
-    package_data={"plugin": ["metadata/*.yaml", "metrics/*.yaml"]},
+    install_requires=["cloudops-api"],
     zip_safe=False,
 )
