@@ -32,6 +32,7 @@
 ---
 
 ## manager/
+reference 설정
 - Role: Data processing, CloudService/CloudServiceType creation
 - Filename: `{service}/{resource}_manager.py`
 - Classname: `{Resource}Manager`
