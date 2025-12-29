@@ -2,86 +2,140 @@
 
 ---
 
+## Basic Info
+- Python 3.8+ / SpaceOne / Inventory Collector
+
+## Naming Convention
+- File/Variable/Function: `snake_case` | Class: `PascalCase` | Constant: `UPPER_SNAKE_CASE`
+- `create_*`: DB save | `make_*`: Dict build | `get_*`: Single fetch | `list_*`: Multiple fetch
+
+---
+
 ## main.py
-- 역할: 플러그인 진입점, CollectorPluginServer 라우트 정의
-- 금지: 비즈니스 로직 구현, 직접 API 호출
-- 규칙:
-  - `CollectorPluginServer` 인스턴스 생성
-  - 4개 라우트 필수: `Collector.init`, `Collector.verify`, `Collector.collect`, `Job.get_tasks`
-  - Manager를 호출하여 수집 위임
-  - config에서 메타데이터 설정값 import
+- Role: Plugin entry point
+- Prohibit: Business logic, Direct API calls
+- Delegate collection to Manager
 
 ---
 
 ## config/
-- 역할: 전역 설정값, 상수 정의
-- 파일명: `{용도}_conf.py` (예: `global_conf.py`, `connector_conf.py`)
-- 금지: 로직 구현, 다른 모듈 import
-- 허용 import: 표준 라이브러리만
-- 규칙:
-  - `global_conf.py`: REGION_INFO, ICON_URL, SUPPORTED_* 상수
-  - `connector_conf.py`: API 엔드포인트, 타임아웃 설정
-  - 모든 상수는 UPPER_SNAKE_CASE
+- Role: Global settings, Constants
+- Filename: `{usage}_conf.py`
+- Prohibit: Logic, Other module imports
 
 ---
 
 ## connector/
-- 역할: 외부 API 통신, Raw 데이터 수집
-- 파일명: `{service}_connector.py` (예: `vpc_connector.py`, `aws_connector.py`)
-- 클래스명: `{Service}Connector` (예: `VpcConnector`, `AWSConnector`)
-- 금지: 데이터 변환/가공, Manager/Service 호출
-- 허용 import: 외부 SDK, spaceone.core.connector, config
-- 규칙:
-  - `BaseConnector` 또는 커스텀 베이스 클래스 상속
-  - 메서드: `set_session()`, `list_{resource}()`, `get_{resource}()`
-  - API 응답 그대로 반환 (변환 금지)
-  - 인증/세션 관리 담당
+- Role: External API communication, Raw data collection
+- Filename: `{service}/{resource}_connector.py`
+- Classname: `{Resource}Connector`
+- Prohibit: Data transformation, Manager calls
+- Pattern:
+  ```python
+  class {Resource}Connector(BaseConnector):  # base.py inheritance required
+      def list_{resources}(self, **kwargs):
+          # Pagination required
+          return self.client.list_resources(...)
+  ```
 
 ---
 
 ## manager/
-- 역할: 데이터 가공, CloudService/CloudServiceType 생성
-- 파일명: `{resource}_manager.py` (예: `vpc_manager.py`, `war_manager.py`)
-- 클래스명: `{Resource}Manager` (예: `VpcManager`, `WARManager`)
-- 금지: 직접 API 호출 (Connector 통해야 함)
-- 허용 import: connector, config, service, spaceone.core.manager, spaceone.inventory.plugin.collector.lib
-- 규칙:
-  - `BaseManager` 또는 `ResourceManager` 상속
-  - 필수 메서드: `collect_resources()`, `create_cloud_service()`, `create_cloud_service_type()`
-  - `make_cloud_service()`, `make_response()` 등 lib 함수 사용
-  - Generator 패턴으로 yield 반환
+- Role: Data processing, CloudService/CloudServiceType creation
+- Filename: `{service}/{resource}_manager.py`
+- Classname: `{Resource}Manager`
+- Prohibit: Direct API calls (use Connector)
+- Pattern:
+  ```python
+  class {Resource}Manager(ResourceManager):  # base.py inheritance required
+      def create_cloud_service_type(self):
+          return make_cloud_service_type(
+              name=self.cloud_service_type,
+              group=self.cloud_service_group,
+              provider=self.provider,
+              metadata_path=f"metadata/{service}/{resource}.yaml",
+              tags={"spaceone:icon": "..."},
+              labels=[...]
+          )
 
----
-
-## service/
-- 역할: 비즈니스 로직, 데이터 추출/변환 로직
-- 파일명: `{domain}_service.py` (예: `war_service.py`, `frameworks_service.py`)
-- 클래스명: `{Domain}Service` (예: `WarService`, `FrameworksService`)
-- 금지: 직접 API 호출, CloudService 생성
-- 허용 import: data_format, config, 표준 라이브러리
-- 규칙:
-  - Manager에서 호출됨
-  - 순수 데이터 처리 로직만 담당
-  - Generator 패턴 사용 가능
+      def create_cloud_service(self, options, secret_data, schema):
+          connector = {Resource}Connector(secret_data)
+          for raw in connector.list_{resources}():
+              try:
+                  yield make_cloud_service(  # Generator required
+                      name=raw.get("name"),
+                      cloud_service_type=self.cloud_service_type,
+                      cloud_service_group=self.cloud_service_group,
+                      provider=self.provider,
+                      data=raw,
+                      account=account_id,
+                      region_code=region,
+                      reference={"resource_id": resource_id}
+                  )
+              except Exception as e:  # Individual error handling
+                  yield make_error_response(
+                      error=e,
+                      provider=self.provider,
+                      cloud_service_group=self.cloud_service_group,
+                      cloud_service_type=self.cloud_service_type
+                  )
+  ```
 
 ---
 
 ## metadata/
-- 역할: CloudServiceType 위젯/테이블 스키마 정의
-- 파일명: `{resource}.yaml` 또는 `{resource}.yml`
-- 금지: Python 로직
-- 허용 import: 없음 (YAML 파일)
-- 규칙:
-  - Manager에서 `metadata_path`로 참조
-  - 위젯, 테이블 레이아웃 정의
+- Role: CloudServiceType UI definition
+- Filename: `{service}/{resource}.yaml`
+- Prohibit: Python logic
+- Pattern:
+  ```yaml
+  widget:
+    - name: Total Count
+      type: card
+      query:
+        filter:
+          - key: provider
+            value: {provider}
+          - key: cloud_service_group
+            value: {group}
+          - key: cloud_service_type
+            value: {type}
+  table:
+    sort:
+      key: data.{field}
+    fields:
+      - {Display}: data.{field}
+  tabs.0:
+    name: Details
+    type: item
+    fields:
+      - {Display}: data.{field}
+  ```
 
 ---
 
 ## metrics/
-- 역할: 메트릭/네임스페이스 정의
-- 파일명: `{metric_type}.yaml`
-- 금지: Python 로직
-- 허용 import: 없음 (YAML 파일)
-- 규칙:
-  - `namespace_*.yaml`: 네임스페이스 정의
-  - 그 외: 메트릭 정의
+- Role: Metric/Namespace definition
+- Filename: `{service}/{resource}/namespace.yaml`, `{service}/{resource}/{metric}.yaml`
+- Prohibit: Python logic
+- Pattern:
+  ```yaml
+  # namespace.yaml
+  namespace_id: ns-{provider}-{service}-{resource}
+  name: {Service}/{Resource}
+  category: ASSET
+  resource_type: inventory.CloudService:{provider}.{Service}.{Resource}
+
+  # {metric}.yaml
+  metric_id: metric-{provider}-{service}-{resource}-{name}
+  metric_type: GAUGE
+  namespace_id: ns-{provider}-{service}-{resource}
+  query_options:
+    group_by:
+      - key: account
+        name: Account ID
+    fields:
+      value:
+        operator: count
+  unit: Count
+  ```

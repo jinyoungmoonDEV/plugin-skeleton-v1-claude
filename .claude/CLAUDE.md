@@ -1,1 +1,1 @@
-# Plugin Project Rules
+# CloudOps Rules
